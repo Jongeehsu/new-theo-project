@@ -8,72 +8,96 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime"
 import type { RouterOutputs } from "~/utils/api";
 import Image from "next/image";
+import LoadingSpinner from "~/components/loading";
 
 dayjs.extend(relativeTime);
+
+const CreatePostWizard = () =>{
+
+  const {user} = useUser();
+
+  console.log(user);
+
+  if(!user) return null;
+
+  return(
+    <div className="flex gap-3 bg-red-200">
+      <Image src={user?.profileImageUrl} 
+      alt="Profile image"
+      className="h-16 w-16 rounded-full"
+      width = {56}
+      height= {56}
+      />
+      <input 
+        placeholder="Type some emojis" 
+        className="bg-transparent grow" />
+    </div>
+  )
+
+}
+
+
+const LoadingPage = () => {
+  return ( 
+  <div className="absolute top-0 right-0 flex h-screen w-screen">
+          <LoadingSpinner size={60} />
+  </div> )
+}
+
+type PostWithUser = RouterOutputs["posts"]["getAll"][number]
+
+ const PostView = (props :PostWithUser ) =>{
+
+  const {post, author} = props;
+
+  return(
+    <div key={post.id} className="p-8 border-b border-slate-400 p-8 gap-3">
+      <Image src={author.profileImageUrl}  
+             className="h-16 w-16 rounded-full "
+             alt={`@${author.username}'s profile picture`}
+             width = {56} 
+             height= {56}
+            //  placeholder="blur"
+             />
+      <div className="flex flex-col">
+        <div className="flex gap-2 font-bold">
+          <span className="bg-brown">{`@${author?.username!}`}</span>
+          <span className="font-thin">{`${dayjs(post.createdAt).fromNow()}`}</span>
+        </div>
+         <span>{post.content}</span>
+      </div>
+    </div>
+  )
+}
+
+
+const Feed = () => {
+
+  const {data, isLoading : postsLoading} = api.posts.getAll.useQuery();
+
+  if(postsLoading) return <LoadingPage />
+  
+  if(!data) return <div>Something went wrong</div>
+
+  return (
+    <div className="flex flex-col">
+            {[...data,...data]?.map((fullPost)=>(
+              <PostView {...fullPost} key={fullPost.post.id} />
+            ))}
+           </div>
+  )
+
+}
 
 
 const Home: NextPage = () => {
   // const {data} = api.example.getAll.useQuery();
+  const {isLoaded :userLoaded,isSignedIn} = useUser();
 
+  api.posts.getAll.useQuery();
 
-  const user = useUser();
-  const {data, isLoading} = api.posts.getAll.useQuery();
-
-  if(isLoading) return <div>Loading...</div>;
-  if(!data) return <div>Something went wrong</div>;
-
-  type PostWithUser = RouterOutputs["posts"]["getAll"][number]
-
-  const PostView = (props :PostWithUser ) =>{
-
-    const {post, author} = props;
-
-    return(
-      <div key={post.id} className="p-8 border-b border-slate-400 p-8 gap-3">
-        <Image src={author?.profileImageUrl}  
-               className="h-16 w-16 rounded-full "
-               alt={`@${author.username}'s profile picture`}
-               width = {56} 
-               height= {56}
-              //  placeholder="blur"
-               />
-        <div className="flex flex-col">
-          <div className="flex gap-2 font-bold">
-            <span className="bg-brown">{`@${author?.username!}`}</span>
-            <span className="font-thin">{`${dayjs(post.createdAt).fromNow()}`}</span>
-          </div>
-           <span>{post.content}</span>
-        </div>
-      </div>
-    )
-  }
-
-
-
-  const CreatePostWizard = () =>{
-
-      const {user} = useUser();
-
-      console.log(user);
-
-      if(!user) return null;
-
-      return(
-        <div className="flex gap-3 bg-red-200">
-          <Image src={user.profileImageUrl} 
-          alt="Profile image"
-          className="h-16 w-16 rounded-full"
-          width = {56}
-          height= {56}
-          />
-          <input placeholder="Type some emojis" className="bg-transparent grow" />
-        </div>
-      )
-
-  }
-
+  if(!userLoaded) return <div />
   
-
   return (
     <>
       <Head>
@@ -89,15 +113,9 @@ const Home: NextPage = () => {
             <div className="border-b border-slate-400 p-4">
             {/* <h1 className="color-white">Sign in</h1> */}
             {/* <SignInButton /> */}
-            {!user.isSignedIn && <SignInButton/>}{!!user.isSignedIn &&  <CreatePostWizard/>}
+            {!isSignedIn && <SignInButton/>}{!!isSignedIn &&  <CreatePostWizard/>}
            </div>
-
-
-           <div className="flex flex-col">
-            {[...data,...data]?.map((fullPost)=>(
-              <PostView {...fullPost} key={fullPost.post.id} />
-            ))}
-           </div>
+            <Feed />
            </div>
            
            {/* <SignIn /> */}
